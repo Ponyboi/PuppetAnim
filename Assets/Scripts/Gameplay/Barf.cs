@@ -21,7 +21,7 @@ public class Barf : MonoBehaviour {
 
 	// Use this for initialization
 	void Start () {
-		animator = GameObject.Find("_Animator").GetComponent<Animator>();
+//		animator = GameObject.Find("_Animator").GetComponent<Animator>();
 		target = Traversals.TraverseHierarchy(transform, "BarfTarget").gameObject;
 	}
 	

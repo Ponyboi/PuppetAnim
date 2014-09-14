@@ -6,32 +6,24 @@ using System;
 public enum Modes{
 	Talk, Barf, Munch
 }
+public enum CreatureType{
+	Unicorn, Whale
+}
 public class Animator : MonoBehaviour {
 	//Moving Parts
-	public GameObject unicorn;
-	private GameObject rightHead;
-	private GameObject rightHeadHinge;
-	private GameObject rightNeck;
-	private GameObject rightNeckHinge;
-	private GameObject rightMouthTop;
-	private GameObject rightMouthTopHinge;
-	private GameObject rightMouthBottom;
-	private GameObject rightMouthBottomHinge;
+	public GameObject creature;
+	private GameObject Head;
+	private GameObject HeadHinge;
+	private GameObject Neck;
+	private GameObject NeckHinge;
+	private GameObject MouthTop;
+	private GameObject MouthTopHinge;
+	private GameObject MouthBottom;
+	private GameObject MouthBottomHinge;
 
-	public GameObject whale;
-	private GameObject leftHead;
-	private GameObject leftHeadHinge;
-	private GameObject leftNeck;
-	private GameObject leftNeckHinge;
-	private GameObject leftMouthTop;
-	private GameObject leftMouthTopHinge;
-	private GameObject leftMouthBottom;
-	private GameObject leftMouthBottomHinge;
-
-	private Vector3 uniPos;
-	private Vector3 whalePos;
+	private Vector3 creaturePos;
 	public float moveSpeed = 0.002f;
-	public float lerpSpeed = 0.3f;
+	public float lerpSpeed = 5f;
 
 	//Input
 	public float rightTrigger;
@@ -42,7 +34,7 @@ public class Animator : MonoBehaviour {
 	public float leftAnalogH;
 	public bool DpadH = false;
 	private float triggerDebounce = 0.02f;
-	public float maxTalkRotateAngle = 25;
+	public float maxTalkRotateAngle = 20;
 	public float maxBarfRotateAngle = 30;
 	public float maxMunchRotateAngle = 30;
 
@@ -67,17 +59,23 @@ public class Animator : MonoBehaviour {
 
 	// Delegates
 	private AnimationDelegate[] currentAnim;
+
 	public Modes mode = Modes.Talk;
+	public CreatureType creatureType = CreatureType.Unicorn;
+	public int animSign;
 
 	// Use this for initialization
 	void Start () {
+		creature = this.gameObject;
 		currentAnim = new AnimationDelegate[]{Talk, Barf, Munch};
 //		animationGlobe.Add(talkBuffer);
 //		animationGlobe.Add(barfBuffer);
+		if (creatureType == CreatureType.Unicorn)
+			animSign = 1;
+		else
+			animSign = -1;
 
-		uniPos = new Vector3(unicorn.transform.position.x, unicorn.transform.position.y, unicorn.transform.position.z);
-		whalePos = new Vector3(whale.transform.position.x, whale.transform.position.y, whale.transform.position.z);
-
+		creaturePos = new Vector3(creature.transform.position.x, creature.transform.position.y, creature.transform.position.z);
 		//buffer = new float[];
 		currentBuffer.Insert(index, 0);
 		talkBuffer.Insert(index, 0);
@@ -87,23 +85,14 @@ public class Animator : MonoBehaviour {
 		rightAnalogVBuffer.Insert(index, 0);
 		Debug.Log(rightTriggerBuffer[index]);
 
-		rightHead = Traversals.TraverseHierarchy(unicorn.transform, "Head").gameObject;
-		rightHeadHinge = Traversals.TraverseHierarchy(unicorn.transform, "HeadHinge").gameObject;
-		rightNeck = Traversals.TraverseHierarchy(unicorn.transform, "Neck").gameObject;
-		rightNeckHinge = Traversals.TraverseHierarchy(unicorn.transform, "NeckHinge").gameObject;
-		rightMouthTop = Traversals.TraverseHierarchy(unicorn.transform, "MouthTop").gameObject;
-		rightMouthTopHinge = Traversals.TraverseHierarchy(unicorn.transform, "MouthTopHinge").gameObject;
-		rightMouthBottom = Traversals.TraverseHierarchy(unicorn.transform, "MouthBottom").gameObject;
-		rightMouthBottomHinge = Traversals.TraverseHierarchy(unicorn.transform, "MouthBottomHinge").gameObject;
-
-		leftHead = Traversals.TraverseHierarchy(whale.transform, "Head").gameObject;
-		leftHeadHinge = Traversals.TraverseHierarchy(whale.transform, "HeadHinge").gameObject;
-		leftNeck = Traversals.TraverseHierarchy(whale.transform, "Neck").gameObject;
-		leftNeckHinge = Traversals.TraverseHierarchy(whale.transform, "NeckHinge").gameObject;
-		leftMouthTop = Traversals.TraverseHierarchy(whale.transform, "MouthTop").gameObject;
-		leftMouthTopHinge = Traversals.TraverseHierarchy(whale.transform, "MouthTopHinge").gameObject;
-		leftMouthBottom = Traversals.TraverseHierarchy(whale.transform, "MouthBottom").gameObject;
-		leftMouthBottomHinge = Traversals.TraverseHierarchy(whale.transform, "MouthBottomHinge").gameObject;
+		Head = Traversals.TraverseHierarchy(creature.transform, "Head").gameObject;
+		HeadHinge = Traversals.TraverseHierarchy(creature.transform, "HeadHinge").gameObject;
+		Neck = Traversals.TraverseHierarchy(creature.transform, "Neck").gameObject;
+		NeckHinge = Traversals.TraverseHierarchy(creature.transform, "NeckHinge").gameObject;
+		MouthTop = Traversals.TraverseHierarchy(creature.transform, "MouthTop").gameObject;
+		MouthTopHinge = Traversals.TraverseHierarchy(creature.transform, "MouthTopHinge").gameObject;
+		MouthBottom = Traversals.TraverseHierarchy(creature.transform, "MouthBottom").gameObject;
+		MouthBottomHinge = Traversals.TraverseHierarchy(creature.transform, "MouthBottomHinge").gameObject;
 	}
 	
 	// Update is called once per frame
@@ -116,51 +105,47 @@ public class Animator : MonoBehaviour {
 		//Talk(0, currentBuffer[index]);
 		//Barf(0, currentBuffer[index]);
 
+		//Bob
+		creature.transform.position = new Vector3(creature.transform.position.x, creature.transform.position.y + Mathf.Sin(Time.time)*0.0015f, creature.transform.position.z);
 	}
 
 	public void MovementControls() {
-		uniPos += new Vector3(Input.GetAxisRaw("RightAnalog_H"), -Input.GetAxisRaw("RightAnalog_V")) * 0.2f;
-		whalePos += new Vector3(Input.GetAxisRaw("LeftAnalog_H"), -Input.GetAxisRaw("LeftAnalog_V")) * 0.2f;
+		if (creatureType == CreatureType.Unicorn) {
+			creaturePos += new Vector3(Input.GetAxisRaw("RightAnalog_H"), -Input.GetAxisRaw("RightAnalog_V")) * 0.2f;
+		} else {
+			creaturePos += new Vector3(Input.GetAxisRaw("LeftAnalog_H"), -Input.GetAxisRaw("LeftAnalog_V")) * 0.2f;
+		}
 
-		if (Input.GetKey(KeyCode.UpArrow))
-			uniPos += Vector3.up * moveSpeed;
-		if (Input.GetKey(KeyCode.RightArrow))
-			uniPos += Vector3.right * moveSpeed;
-		if (Input.GetKey(KeyCode.DownArrow))
-			uniPos += Vector3.down * moveSpeed;
-		if (Input.GetKey(KeyCode.LeftArrow))
-			uniPos += Vector3.left * moveSpeed;
+		if (creatureType == CreatureType.Unicorn) {
+			if (Input.GetKey(KeyCode.UpArrow))
+				creaturePos += Vector3.up * moveSpeed;
+			if (Input.GetKey(KeyCode.RightArrow))
+				creaturePos += Vector3.right * moveSpeed;
+			if (Input.GetKey(KeyCode.DownArrow))
+				creaturePos += Vector3.down * moveSpeed;
+			if (Input.GetKey(KeyCode.LeftArrow))
+				creaturePos += Vector3.left * moveSpeed;
+		} else {
+			if (Input.GetKeyDown(KeyCode.W))
+				creaturePos += Vector3.up * moveSpeed;
+			if (Input.GetKeyDown(KeyCode.D))
+				creaturePos += Vector3.right * moveSpeed;
+			if (Input.GetKeyDown(KeyCode.S))
+				creaturePos += Vector3.down * moveSpeed;
+			if (Input.GetKeyDown(KeyCode.A))
+				creaturePos += Vector3.left * moveSpeed;
+		}
 
-		if (uniPos.y > 2.8f)
-			uniPos = new Vector3(uniPos.x, 2.8f, uniPos.z);
-		if (uniPos.y <  -5.1f)
-			uniPos = new Vector3(uniPos.x, -5.1f, uniPos.z);
-		if (uniPos.x > 6)
-			uniPos = new Vector3(6, uniPos.y, uniPos.z);
-		if (uniPos.x < -10)
-			uniPos = new Vector3(-10, uniPos.y, uniPos.z);
+		if (creaturePos.y > 2.8f)
+			creaturePos = new Vector3(creaturePos.x, 2.8f, creaturePos.z);
+		if (creaturePos.y <  -5.1f)
+			creaturePos = new Vector3(creaturePos.x, -5.1f, creaturePos.z);
+		if (creaturePos.x > 6)
+			creaturePos = new Vector3(6, creaturePos.y, creaturePos.z);
+		if (creaturePos.x < -10)
+			creaturePos = new Vector3(-10, creaturePos.y, creaturePos.z);
 
-		if (Input.GetKeyDown(KeyCode.W))
-			whalePos += Vector3.up * moveSpeed;
-		if (Input.GetKeyDown(KeyCode.D))
-			whalePos += Vector3.right * moveSpeed;
-		if (Input.GetKeyDown(KeyCode.S))
-			whalePos += Vector3.down * moveSpeed;
-		if (Input.GetKeyDown(KeyCode.A))
-			whalePos += Vector3.left * moveSpeed;
-
-		if (whalePos.y > 2.8f)
-			whalePos = new Vector3(whalePos.x, 2.8f, whalePos.z);
-		if (whalePos.y <  -5.1f)
-			whalePos = new Vector3(whalePos.x, -5.1f, whalePos.z);
-		if (whalePos.x > 6)
-			whalePos = new Vector3(6, whalePos.y, whalePos.z);
-		if (whalePos.x < -10)
-			whalePos = new Vector3(-10, whalePos.y, whalePos.z);
-
-		unicorn.transform.position = Vector3.Lerp(unicorn.transform.position, uniPos, lerpSpeed * Time.deltaTime);
-		whale.transform.position = Vector3.Lerp(whale.transform.position, whalePos, lerpSpeed * Time.deltaTime);
-		
+		creature.transform.position = Vector3.Lerp(creature.transform.position, creaturePos, lerpSpeed * Time.deltaTime);
 	}
 
 	public void InputControls(){
@@ -256,78 +241,82 @@ public class Animator : MonoBehaviour {
 //		rightHeadHinge.transform.rotation = Quaternion.AngleAxis(-maxTalkRotateAngle * Mathf.Abs(inputVal) * 0.2f , transform.forward);
 //		rightNeckHinge.transform.rotation = Quaternion.AngleAxis(-maxTalkRotateAngle * Mathf.Abs(inputVal) * 0.1f, transform.forward);
 
-		Quaternion rightNeckHingeRot = Quaternion.AngleAxis(-maxTalkRotateAngle * Mathf.Abs(inputVal) * 0.1f, transform.forward);
-		Quaternion rightHeadHingeRot = rightNeckHingeRot * Quaternion.AngleAxis(-maxTalkRotateAngle * Mathf.Abs(inputVal) * 0.2f , transform.forward);
-		Quaternion rightMouthBottomHingeRot = rightHeadHingeRot * Quaternion.AngleAxis(maxTalkRotateAngle * Mathf.Abs(inputVal) * 1f, transform.forward);
-		Quaternion rightMouthTopHingeRot = rightHeadHingeRot * Quaternion.AngleAxis(-maxTalkRotateAngle * Mathf.Abs(inputVal) * 0.5f , transform.forward);
+		Quaternion NeckHingeRot = Quaternion.AngleAxis(-maxTalkRotateAngle * Mathf.Abs(inputVal) * 0.1f * animSign, transform.forward);
+		Quaternion HeadHingeRot = NeckHingeRot * Quaternion.AngleAxis(-maxTalkRotateAngle * Mathf.Abs(inputVal) * 0.2f * animSign, transform.forward);
+		Quaternion MouthBottomHingeRot = HeadHingeRot * Quaternion.AngleAxis(maxTalkRotateAngle * Mathf.Abs(inputVal) * 1f * animSign, transform.forward);
+		Quaternion MouthTopHingeRot = HeadHingeRot * Quaternion.AngleAxis(-maxTalkRotateAngle * Mathf.Abs(inputVal) * 0.5f * animSign, transform.forward);
 		
-		rightNeckHinge.transform.rotation =  rightNeckHingeRot;
-		rightHeadHinge.transform.rotation =  rightHeadHingeRot;
-		rightMouthBottomHinge.transform.rotation = rightMouthBottomHingeRot;
-		rightMouthTopHinge.transform.rotation = rightMouthTopHingeRot;
+		NeckHinge.transform.rotation =  NeckHingeRot;
+		HeadHinge.transform.rotation =  HeadHingeRot;
+		MouthBottomHinge.transform.rotation = MouthBottomHingeRot;
+		MouthTopHinge.transform.rotation = MouthTopHingeRot;
 
-
-		leftMouthTopHinge.transform.rotation = Quaternion.AngleAxis(maxTalkRotateAngle * Mathf.Abs(leftTrigger) * 0.5f , transform.forward);
-		leftMouthBottomHinge.transform.rotation = Quaternion.AngleAxis(-maxTalkRotateAngle * Mathf.Abs(leftTrigger) * 0.75f , transform.forward);
-		leftHeadHinge.transform.rotation = Quaternion.AngleAxis(maxTalkRotateAngle * Mathf.Abs(leftTrigger) * 0.2f , transform.forward);
-		leftNeckHinge.transform.rotation = Quaternion.AngleAxis(maxTalkRotateAngle * Mathf.Abs(leftTrigger) * 0.1f, transform.forward);
-		//Bob
-		unicorn.transform.position = new Vector3(unicorn.transform.position.x, unicorn.transform.position.y + Mathf.Sin(Time.time)*0.0015f, unicorn.transform.position.z);
-		whale.transform.position = new Vector3(whale.transform.position.x, whale.transform.position.y + Mathf.Sin(Time.time)*0.0015f, whale.transform.position.z);
 	}
 
 	public void Barf(float inputVal, float existingVal) {
 		inputVal = Mathf.Clamp(inputVal + existingVal, 0, 1);
 
-		Quaternion rightNeckHingeRot = Quaternion.AngleAxis(maxBarfRotateAngle * Mathf.Abs(inputVal) * 1.3f, transform.forward);
-		Quaternion rightHeadHingeRot = rightNeckHingeRot * Quaternion.AngleAxis(-maxBarfRotateAngle * Mathf.Abs(inputVal) * 1.2f , transform.forward);
-		Quaternion rightMouthBottomHingeRot = rightHeadHingeRot * Quaternion.AngleAxis(maxBarfRotateAngle * Mathf.Abs(inputVal) * 0.7f, transform.forward);
-		Quaternion rightMouthTopHingeRot = rightHeadHingeRot * Quaternion.AngleAxis(-maxBarfRotateAngle * Mathf.Abs(inputVal) * 0.3f , transform.forward);
+		Quaternion NeckHingeRot = Quaternion.AngleAxis(maxBarfRotateAngle * Mathf.Abs(inputVal) * 1.3f * animSign, transform.forward);
+		Quaternion HeadHingeRot = NeckHingeRot * Quaternion.AngleAxis(-maxBarfRotateAngle * Mathf.Abs(inputVal) * 1.2f * animSign, transform.forward);
+		Quaternion MouthBottomHingeRot = HeadHingeRot * Quaternion.AngleAxis(maxBarfRotateAngle * Mathf.Abs(inputVal) * 0.7f * animSign, transform.forward);
+		Quaternion MouthTopHingeRot = HeadHingeRot * Quaternion.AngleAxis(-maxBarfRotateAngle * Mathf.Abs(inputVal) * 0.3f * animSign, transform.forward);
 
-		rightNeckHinge.transform.rotation =  rightNeckHingeRot;
-		rightHeadHinge.transform.rotation =  rightHeadHingeRot;
-		rightMouthBottomHinge.transform.rotation = rightMouthBottomHingeRot;
-		rightMouthTopHinge.transform.rotation = rightMouthTopHingeRot;
-		
-		leftMouthTopHinge.transform.rotation = Quaternion.AngleAxis(maxBarfRotateAngle * Mathf.Abs(leftTrigger) * 0.5f , transform.forward);
-		leftMouthBottomHinge.transform.rotation = Quaternion.AngleAxis(-maxBarfRotateAngle * Mathf.Abs(leftTrigger) * 0.75f , transform.forward);
-		leftHeadHinge.transform.rotation = Quaternion.AngleAxis(maxBarfRotateAngle * Mathf.Abs(leftTrigger) * 0.2f , transform.forward);
-		leftNeckHinge.transform.rotation = Quaternion.AngleAxis(maxBarfRotateAngle * Mathf.Abs(leftTrigger) * 0.1f, transform.forward);
-		//Bob
-		unicorn.transform.position = new Vector3(unicorn.transform.position.x, unicorn.transform.position.y + Mathf.Sin(Time.time)*0.0015f, unicorn.transform.position.z);
-		whale.transform.position = new Vector3(whale.transform.position.x, whale.transform.position.y + Mathf.Sin(Time.time)*0.0015f, whale.transform.position.z);
+		NeckHinge.transform.rotation =  NeckHingeRot;
+		HeadHinge.transform.rotation =  HeadHingeRot;
+		MouthBottomHinge.transform.rotation = MouthBottomHingeRot;
+		MouthTopHinge.transform.rotation = MouthTopHingeRot;
 	}
 	public void Munch(float inputVal, float existingVal) {
 		inputVal = Mathf.Clamp(inputVal + existingVal, 0, 1);
 		
-		Quaternion rightNeckHingeRot = Quaternion.AngleAxis(maxBarfRotateAngle * Mathf.Abs(inputVal) * 0.7f, transform.forward);
-		Quaternion rightHeadHingeRot = rightNeckHingeRot * Quaternion.AngleAxis(-maxBarfRotateAngle * Mathf.Abs(inputVal) * 0.8f , transform.forward);
-		Quaternion rightMouthBottomHingeRot = rightHeadHingeRot * Quaternion.AngleAxis(-maxBarfRotateAngle * Mathf.Abs(inputVal) * 0.55f, transform.forward);
-		Quaternion rightMouthTopHingeRot = rightHeadHingeRot * Quaternion.AngleAxis(maxBarfRotateAngle * Mathf.Abs(inputVal) * 0.2f , transform.forward);
+		Quaternion NeckHingeRot = Quaternion.AngleAxis(maxBarfRotateAngle * Mathf.Abs(inputVal) * 0.7f * animSign, transform.forward);
+		Quaternion HeadHingeRot = NeckHingeRot * Quaternion.AngleAxis(-maxBarfRotateAngle * Mathf.Abs(inputVal) * 0.8f * animSign, transform.forward);
+		Quaternion MouthBottomHingeRot = HeadHingeRot * Quaternion.AngleAxis(-maxBarfRotateAngle * Mathf.Abs(inputVal) * 0.55f * animSign, transform.forward);
+		Quaternion MouthTopHingeRot = HeadHingeRot * Quaternion.AngleAxis(maxBarfRotateAngle * Mathf.Abs(inputVal) * 0.2f * animSign, transform.forward);
 		
-		rightNeckHinge.transform.rotation =  rightNeckHingeRot;
-		rightHeadHinge.transform.rotation =  rightHeadHingeRot;
-		rightMouthBottomHinge.transform.rotation = rightMouthBottomHingeRot;
-		rightMouthTopHinge.transform.rotation = rightMouthTopHingeRot;
+		NeckHinge.transform.rotation =  NeckHingeRot;
+		HeadHinge.transform.rotation =  HeadHingeRot;
+		MouthBottomHinge.transform.rotation = MouthBottomHingeRot;
+		MouthTopHinge.transform.rotation = MouthTopHingeRot;
 	}
 
 	
 	public void InputRouter() {
-		switch (mode) {
-			case Modes.Talk: {
-				currentVal = rightTrigger;
-				currentBuffer = talkBuffer;
-				break;
+		if (creatureType == CreatureType.Unicorn) {
+			switch (mode) {
+				case Modes.Talk: {
+					currentVal = rightTrigger;
+					currentBuffer = talkBuffer;
+					break;
+				}
+				case Modes.Barf: {
+					currentVal = rightTrigger;
+					currentBuffer = barfBuffer;
+					break;
+				}
+				case Modes.Munch: {
+					currentVal = rightTrigger;
+					currentBuffer = munchBuffer;
+					break;
+				}
 			}
-			case Modes.Barf: {
-				currentVal = rightTrigger;
-				currentBuffer = barfBuffer;
-				break;
-			}
-			case Modes.Munch: {
-				currentVal = rightTrigger;
-				currentBuffer = munchBuffer;
-				break;
+		} else {
+			switch (mode) {
+				case Modes.Talk: {
+					currentVal = leftTrigger;
+					currentBuffer = talkBuffer;
+					break;
+				}
+				case Modes.Barf: {
+					currentVal = leftTrigger;
+					currentBuffer = barfBuffer;
+					break;
+				}
+				case Modes.Munch: {
+					currentVal = leftTrigger;
+					currentBuffer = munchBuffer;
+					break;
+				}
 			}
 		}
 	}

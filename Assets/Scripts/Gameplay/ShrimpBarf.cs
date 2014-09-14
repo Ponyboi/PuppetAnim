@@ -21,7 +21,6 @@ public class ShrimpBarf : MonoBehaviour {
 	
 	// Use this for initialization
 	void Start () {
-		animator = GameObject.Find("_Animator").GetComponent<Animator>();
 		target = Traversals.TraverseHierarchy(transform, "BarfTarget").gameObject;
 	}
 	
@@ -60,6 +59,7 @@ public class ShrimpBarf : MonoBehaviour {
 			Vector3 eulerAngleVelocity = new Vector3(Random.Range(0,100), Random.Range(0,100), Random.Range(0,100));
 			Vector3 genDir = new Vector3(x, y, 0);
 			item = (Transform)Instantiate(pukeChunkList[typeIndex]);
+			item.name = "Shrimp";
 			item.gameObject.AddComponent<PukeLifespan>();
 			item.transform.position = new Vector3(xPos, transform.position.y, transform.position.z);
 			item.rigidbody.AddForce(genDir * chunkSpeed);
