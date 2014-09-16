@@ -55,7 +55,7 @@ public class ShrimpBarf : MonoBehaviour {
 			
 			float x = Random.Range(direction.x - spreadCalculated, direction.x + spreadCalculated);
 			float y = Random.Range(direction.y - spreadCalculated, direction.y - spreadCalculated);
-			float xPos = Random.Range(-10, 6);
+			float xPos = Random.Range(-10, 8);
 			Vector3 eulerAngleVelocity = new Vector3(Random.Range(0,100), Random.Range(0,100), Random.Range(0,100));
 			Vector3 genDir = new Vector3(x, y, 0);
 			item = (Transform)Instantiate(pukeChunkList[typeIndex]);

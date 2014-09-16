@@ -9,6 +9,9 @@ public enum Modes{
 public enum CreatureType{
 	Unicorn, Whale
 }
+public enum PlayMode {
+	Play, Animate
+}
 public class Animator : MonoBehaviour {
 	//Moving Parts
 	public GameObject creature;
@@ -21,6 +24,15 @@ public class Animator : MonoBehaviour {
 	private GameObject MouthBottom;
 	private GameObject MouthBottomHinge;
 
+	//Sound
+	public GameObject audioNode;
+	public AudioSource mouth;
+	public AudioClip munch;
+	public AudioClip barf;
+	public float soundVolume = 1.0f;
+	public bool barfSoundBool = true;
+
+	//Movement
 	private Vector3 creaturePos;
 	public float moveSpeed = 0.002f;
 	public float lerpSpeed = 5f;
@@ -37,6 +49,15 @@ public class Animator : MonoBehaviour {
 	public float maxTalkRotateAngle = 20;
 	public float maxBarfRotateAngle = 30;
 	public float maxMunchRotateAngle = 30;
+	private float barfWaitTime = 0.34f;
+	private float munchWaitTime = 0.3f;
+	public float buttonDownTime = 0;
+	public float buttonUpTime = 0;
+	public float animLerpVal = 0;
+	public float animLerpTime = 20f;
+	public float animLerpCurrentTime = 0;
+	public float animLerpFirstTime = 0;
+	public KeyCode creatureKeyCode;
 
 	//Recording
 	//public float[] rightTriggerBuffer;
@@ -61,6 +82,7 @@ public class Animator : MonoBehaviour {
 	private AnimationDelegate[] currentAnim;
 
 	public Modes mode = Modes.Talk;
+	public PlayMode playMode = PlayMode.Play;
 	public CreatureType creatureType = CreatureType.Unicorn;
 	public int animSign;
 
@@ -70,10 +92,13 @@ public class Animator : MonoBehaviour {
 		currentAnim = new AnimationDelegate[]{Talk, Barf, Munch};
 //		animationGlobe.Add(talkBuffer);
 //		animationGlobe.Add(barfBuffer);
-		if (creatureType == CreatureType.Unicorn)
+		if (creatureType == CreatureType.Unicorn) {
 			animSign = 1;
-		else
+			creatureKeyCode = KeyCode.Return;
+		} else {
 			animSign = -1;
+			creatureKeyCode = KeyCode.Space;
+		}
 
 		creaturePos = new Vector3(creature.transform.position.x, creature.transform.position.y, creature.transform.position.z);
 		//buffer = new float[];
@@ -93,6 +118,11 @@ public class Animator : MonoBehaviour {
 		MouthTopHinge = Traversals.TraverseHierarchy(creature.transform, "MouthTopHinge").gameObject;
 		MouthBottom = Traversals.TraverseHierarchy(creature.transform, "MouthBottom").gameObject;
 		MouthBottomHinge = Traversals.TraverseHierarchy(creature.transform, "MouthBottomHinge").gameObject;
+
+		audioNode = new GameObject();
+	 	mouth = audioNode.AddComponent<AudioSource>();
+		mouth.clip = munch;
+		audioNode.transform.parent = transform;
 	}
 	
 	// Update is called once per frame
@@ -126,13 +156,13 @@ public class Animator : MonoBehaviour {
 			if (Input.GetKey(KeyCode.LeftArrow))
 				creaturePos += Vector3.left * moveSpeed;
 		} else {
-			if (Input.GetKeyDown(KeyCode.W))
+			if (Input.GetKey(KeyCode.W))
 				creaturePos += Vector3.up * moveSpeed;
-			if (Input.GetKeyDown(KeyCode.D))
+			if (Input.GetKey(KeyCode.D))
 				creaturePos += Vector3.right * moveSpeed;
-			if (Input.GetKeyDown(KeyCode.S))
+			if (Input.GetKey(KeyCode.S))
 				creaturePos += Vector3.down * moveSpeed;
-			if (Input.GetKeyDown(KeyCode.A))
+			if (Input.GetKey(KeyCode.A))
 				creaturePos += Vector3.left * moveSpeed;
 		}
 
@@ -146,6 +176,50 @@ public class Animator : MonoBehaviour {
 			creaturePos = new Vector3(-10, creaturePos.y, creaturePos.z);
 
 		creature.transform.position = Vector3.Lerp(creature.transform.position, creaturePos, lerpSpeed * Time.deltaTime);
+
+		if (Input.GetKeyUp(creatureKeyCode)) {
+			buttonUpTime = Time.time;
+			barfSoundBool = true;
+		}
+		if (buttonUpTime > buttonDownTime) {
+			if (buttonUpTime - buttonDownTime < munchWaitTime) {
+				mode = Modes.Munch;
+				animLerpCurrentTime = Time.time + animLerpTime;
+				buttonUpTime = buttonDownTime;
+				mouth.clip = munch;
+				PlaySound();
+			}
+		}
+		if (Input.GetKey(creatureKeyCode)) {
+			if (Input.GetKeyDown(creatureKeyCode)) {
+				buttonDownTime = Time.time;
+			}
+				//If button held down, Barf
+			if (Time.time - buttonDownTime > barfWaitTime) {
+				mode = Modes.Barf;
+				animLerpCurrentTime = Time.time + animLerpTime;
+				animLerpFirstTime = buttonDownTime + barfWaitTime;
+				if (barfSoundBool) {
+					mouth.clip = barf;
+					PlaySound();
+				}
+				barfSoundBool = false;
+			}
+		}
+
+		if (animLerpCurrentTime > Time.time) {
+			float timeVar = (Time.time - (animLerpCurrentTime - (animLerpTime)));
+			float timeVarFirst = (Time.time - (animLerpFirstTime));
+			if (Time.time < animLerpCurrentTime - (animLerpTime/2)) {
+				animLerpVal = Mathf.Lerp(0, 1, timeVarFirst/(animLerpTime/2));
+			} else {
+				animLerpVal = Mathf.Lerp(1, 0, (timeVar - (animLerpTime/2))/(animLerpTime/2));
+			}
+		}
+		if (playMode == PlayMode.Play) {
+			currentVal = animLerpVal;
+		}
+
 	}
 
 	public void InputControls(){
@@ -280,42 +354,57 @@ public class Animator : MonoBehaviour {
 		MouthTopHinge.transform.rotation = MouthTopHingeRot;
 	}
 
+	void PlaySound() {
+		if (mouth.clip != null) //only play if we assigned a sound to the AudioClip slot!
+		{
+			if (mouth.isPlaying) //if already playing, stop it before playing again
+				mouth.Stop ();
+			mouth.volume = soundVolume; //set the volume each time, in case it has been changed
+			mouth.Play();
+			
+		}
+	}
 	
 	public void InputRouter() {
-		if (creatureType == CreatureType.Unicorn) {
-			switch (mode) {
-				case Modes.Talk: {
-					currentVal = rightTrigger;
-					currentBuffer = talkBuffer;
-					break;
+//		if (playMode == PlayMode.Play) {
+//				currentVal = animLerpVal;
+//		} else 
+		if (playMode == PlayMode.Animate) {
+			if (creatureType == CreatureType.Unicorn) {
+				switch (mode) {
+					case Modes.Talk: {
+						currentVal = rightTrigger;
+						currentBuffer = talkBuffer;
+						break;
+					}
+					case Modes.Barf: {
+						currentVal = rightTrigger;
+						currentBuffer = barfBuffer;
+						break;
+					}
+					case Modes.Munch: {
+						currentVal = rightTrigger;
+						currentBuffer = munchBuffer;
+						break;
+					}
 				}
-				case Modes.Barf: {
-					currentVal = rightTrigger;
-					currentBuffer = barfBuffer;
-					break;
-				}
-				case Modes.Munch: {
-					currentVal = rightTrigger;
-					currentBuffer = munchBuffer;
-					break;
-				}
-			}
-		} else {
-			switch (mode) {
-				case Modes.Talk: {
-					currentVal = leftTrigger;
-					currentBuffer = talkBuffer;
-					break;
-				}
-				case Modes.Barf: {
-					currentVal = leftTrigger;
-					currentBuffer = barfBuffer;
-					break;
-				}
-				case Modes.Munch: {
-					currentVal = leftTrigger;
-					currentBuffer = munchBuffer;
-					break;
+			} else {
+				switch (mode) {
+					case Modes.Talk: {
+						currentVal = leftTrigger;
+						currentBuffer = talkBuffer;
+						break;
+					}
+					case Modes.Barf: {
+						currentVal = leftTrigger;
+						currentBuffer = barfBuffer;
+						break;
+					}
+					case Modes.Munch: {
+						currentVal = leftTrigger;
+						currentBuffer = munchBuffer;
+						break;
+					}
 				}
 			}
 		}
