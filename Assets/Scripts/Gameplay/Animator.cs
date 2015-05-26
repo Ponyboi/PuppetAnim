@@ -3,8 +3,8 @@ using System.Collections;
 using System.Collections.Generic;
 using System;
 
-public enum Modes{
-	Talk, Barf, Munch
+public enum AnimMode{
+	Talk, Barf, Munch, Up, Down
 }
 public enum CreatureType{
 	Unicorn, Whale
@@ -13,17 +13,30 @@ public enum PlayMode {
 	Play, Animate
 }
 public class Animator : MonoBehaviour {
+	private string savePath;
+
+	public int id;
+
 	//Moving Parts
 	public GameObject creature;
-	private GameObject Head;
-	private GameObject HeadHinge;
-	private GameObject Neck;
-	private GameObject NeckHinge;
-	private GameObject MouthTop;
-	private GameObject MouthTopHinge;
-	private GameObject MouthBottom;
-	private GameObject MouthBottomHinge;
+	private GameObject head;
+	private GameObject headHinge;
+	private GameObject neck;
+	private GameObject neckHinge;
+	private GameObject mouthTop;
+	private GameObject mouthTopHinge;
+	private GameObject mouthBottom;
+	private GameObject mouthBottomHinge;
 
+	//Radial Menu
+	private Radial radialMenu;
+	
+	//Rotations
+	private Quaternion neckHingeRot;
+	private Quaternion headHingeRot;
+	private Quaternion mouthBottomHingeRot;
+	private Quaternion mouthTopHingeRot;
+	
 	//Sound
 	public GameObject audioNode;
 	public AudioSource mouth;
@@ -31,20 +44,23 @@ public class Animator : MonoBehaviour {
 	public AudioClip barf;
 	public float soundVolume = 1.0f;
 	public bool barfSoundBool = true;
-
+	
 	//Movement
 	private Vector3 creaturePos;
 	public float moveSpeed = 0.002f;
 	public float lerpSpeed = 5f;
-
+	
 	//Input
 	public float rightTrigger;
 	public float leftTrigger;
-	public float rightAnalogV;
-	public float rightAnalogH;
-	public float leftAnalogV;
-	public float leftAnalogH;
+	public float rightAnalogX;
+	public float rightAnalogY;
+	public float leftAnalogX;
+	public float leftAnalogY;
+	public Vector3 rightAnalog;
+	public Vector3 leftAnalog;
 	public bool DpadH = false;
+	public bool DpadV = false;
 	private float triggerDebounce = 0.02f;
 	public float maxTalkRotateAngle = 20;
 	public float maxBarfRotateAngle = 30;
@@ -58,40 +74,59 @@ public class Animator : MonoBehaviour {
 	public float animLerpCurrentTime = 0;
 	public float animLerpFirstTime = 0;
 	public KeyCode creatureKeyCode;
-
+	
 	//Recording
 	//public float[] rightTriggerBuffer;
-	public List<List<float>> animationGlobe = new List<List<float>>();
+	public Dictionary<string, List<float>> animationContainer = new Dictionary<string, List<float>>();
+	public List<AnimationContainer> animContainers = new List<AnimationContainer>();
 	public List<float> currentBuffer = new List<float>(1000);
-	public List<float> rightTriggerBuffer = new List<float>(1000);
-	public List<float> rightAnalogVBuffer = new List<float>(1000);
 	public List<float> talkBuffer = new List<float>(1000);
 	public List<float> barfBuffer = new List<float>(1000);
 	public List<float> munchBuffer = new List<float>(1000);
+	public List<float> upBuffer = new List<float>(1000);
+	public List<float> downBuffer = new List<float>(1000);
 	public int index = 0;
 	public float currentVal = 0;
 	public int loopPos = 999999999;
 	public bool play = false;
 	public bool record = false;
 	public bool looping = false;
-	public float interval = 0.1f;
+	public float interval = 0.01f;
 	public float currentTime = 0f;
 	public int animIndex = 0;
-
+	
 	// Delegates
 	private AnimationDelegate[] currentAnim;
-
-	public Modes mode = Modes.Talk;
+	private List<List<float>> savedAnimBuffers;
+	
+	public AnimMode mode = AnimMode.Talk;
 	public PlayMode playMode = PlayMode.Play;
 	public CreatureType creatureType = CreatureType.Unicorn;
 	public int animSign;
-
+	
 	// Use this for initialization
 	void Start () {
 		creature = this.gameObject;
-		currentAnim = new AnimationDelegate[]{Talk, Barf, Munch};
-//		animationGlobe.Add(talkBuffer);
-//		animationGlobe.Add(barfBuffer);
+		savePath = Application.dataPath;
+		Array animFunctions = Enum.GetValues(typeof(AnimMode));
+		for (int i=0; i<animFunctions.Length; i++) {
+			animationContainer.Add(((AnimMode)i).ToString("f"), new List<float>());
+			animationContainer[((AnimMode)i).ToString("f")].Insert(index, 0);
+		}
+
+		radialMenu = GameObject.Find("Radial" + id).GetComponent<Radial>();
+		
+		talkBuffer.Insert(index, 0);
+		barfBuffer.Insert(index, 0);
+		munchBuffer.Insert(index, 0);
+		upBuffer.Insert(index, 0);
+		downBuffer.Insert(index, 0);
+		currentBuffer.Insert(index, 0);
+		
+		currentAnim = new AnimationDelegate[]{Talk, Barf, Munch, Up, Down};
+		savedAnimBuffers = new List<List<float>>{talkBuffer, barfBuffer, munchBuffer, upBuffer, downBuffer};
+		//		animationGlobe.Add(talkBuffer);
+		//		animationGlobe.Add(barfBuffer);
 		if (creatureType == CreatureType.Unicorn) {
 			animSign = 1;
 			creatureKeyCode = KeyCode.Return;
@@ -99,53 +134,67 @@ public class Animator : MonoBehaviour {
 			animSign = -1;
 			creatureKeyCode = KeyCode.Space;
 		}
-
+		
 		creaturePos = new Vector3(creature.transform.position.x, creature.transform.position.y, creature.transform.position.z);
 		//buffer = new float[];
-		currentBuffer.Insert(index, 0);
-		talkBuffer.Insert(index, 0);
-		barfBuffer.Insert(index, 0);
-		munchBuffer.Insert(index, 0);
-		rightTriggerBuffer.Insert(index, 0);
-		rightAnalogVBuffer.Insert(index, 0);
-		Debug.Log(rightTriggerBuffer[index]);
 
-		Head = Traversals.TraverseHierarchy(creature.transform, "Head").gameObject;
-		HeadHinge = Traversals.TraverseHierarchy(creature.transform, "HeadHinge").gameObject;
-		Neck = Traversals.TraverseHierarchy(creature.transform, "Neck").gameObject;
-		NeckHinge = Traversals.TraverseHierarchy(creature.transform, "NeckHinge").gameObject;
-		MouthTop = Traversals.TraverseHierarchy(creature.transform, "MouthTop").gameObject;
-		MouthTopHinge = Traversals.TraverseHierarchy(creature.transform, "MouthTopHinge").gameObject;
-		MouthBottom = Traversals.TraverseHierarchy(creature.transform, "MouthBottom").gameObject;
-		MouthBottomHinge = Traversals.TraverseHierarchy(creature.transform, "MouthBottomHinge").gameObject;
+		
+		head = Traversals.TraverseHierarchy(creature.transform, "Head").gameObject;
+		headHinge = Traversals.TraverseHierarchy(creature.transform, "HeadHinge").gameObject;
+		neck = Traversals.TraverseHierarchy(creature.transform, "Neck").gameObject;
+		neckHinge = Traversals.TraverseHierarchy(creature.transform, "NeckHinge").gameObject;
+		mouthTop = Traversals.TraverseHierarchy(creature.transform, "MouthTop").gameObject;
+		mouthTopHinge = Traversals.TraverseHierarchy(creature.transform, "MouthTopHinge").gameObject;
+		mouthBottom = Traversals.TraverseHierarchy(creature.transform, "MouthBottom").gameObject;
+		mouthBottomHinge = Traversals.TraverseHierarchy(creature.transform, "MouthBottomHinge").gameObject;
+
+		neckHingeRot = Quaternion.AngleAxis(0, transform.forward);
+		headHingeRot = Quaternion.AngleAxis(0, transform.forward);
+		mouthBottomHingeRot = Quaternion.AngleAxis(0, transform.forward);
+		mouthTopHingeRot = Quaternion.AngleAxis(0, transform.forward);
 
 		audioNode = new GameObject();
-	 	mouth = audioNode.AddComponent<AudioSource>();
+		mouth = audioNode.AddComponent<AudioSource>();
 		mouth.clip = munch;
 		audioNode.transform.parent = transform;
 	}
 	
 	// Update is called once per frame
 	void Update () {
+		
+		neckHingeRot = Quaternion.AngleAxis(0, transform.forward);
+		headHingeRot = Quaternion.AngleAxis(0, transform.forward);
+		mouthBottomHingeRot = Quaternion.AngleAxis(0, transform.forward);
+		mouthTopHingeRot = Quaternion.AngleAxis(0, transform.forward);
+
+		if (radialMenu.radialMode == Radial.RadialMode.RadialMenu) {
+			mode = radialMenu.animMode;
+		} else if (radialMenu.radialMode == Radial.RadialMode.RadialMenu) {
+
+		}
+
 		InputControls();
 		PlaybackControls();
 		MovementControls();
-
-		currentAnim[(int) mode](currentVal, 0);
+		
+		//currentAnim[(int) mode](currentVal, 0);
+		
+		AnimationSumation();
+		
 		//Talk(0, currentBuffer[index]);
 		//Barf(0, currentBuffer[index]);
-
+		
 		//Bob
 		creature.transform.position = new Vector3(creature.transform.position.x, creature.transform.position.y + Mathf.Sin(Time.time)*0.0015f, creature.transform.position.z);
 	}
-
+	
 	public void MovementControls() {
-		if (creatureType == CreatureType.Unicorn) {
-			creaturePos += new Vector3(Input.GetAxisRaw("RightAnalog_H"), -Input.GetAxisRaw("RightAnalog_V")) * 0.2f;
-		} else {
-			creaturePos += new Vector3(Input.GetAxisRaw("LeftAnalog_H"), -Input.GetAxisRaw("LeftAnalog_V")) * 0.2f;
-		}
-
+//		if (creatureType == CreatureType.Unicorn) {
+//			creaturePos += new Vector3(Input.GetAxisRaw("RightAnalog_H"), -Input.GetAxisRaw("RightAnalog_V")) * 0.2f;
+//		} else {
+//			creaturePos += new Vector3(Input.GetAxisRaw("LeftAnalog_H"), -Input.GetAxisRaw("LeftAnalog_V")) * 0.2f;
+//		}
+		
 		if (creatureType == CreatureType.Unicorn) {
 			if (Input.GetKey(KeyCode.UpArrow))
 				creaturePos += Vector3.up * moveSpeed;
@@ -165,7 +214,9 @@ public class Animator : MonoBehaviour {
 			if (Input.GetKey(KeyCode.A))
 				creaturePos += Vector3.left * moveSpeed;
 		}
-
+//		Debug.Log (leftAnalog);
+		creaturePos += leftAnalog * moveSpeed;
+		
 		if (creaturePos.y > 2.8f)
 			creaturePos = new Vector3(creaturePos.x, 2.8f, creaturePos.z);
 		if (creaturePos.y <  -5.1f)
@@ -174,16 +225,16 @@ public class Animator : MonoBehaviour {
 			creaturePos = new Vector3(6, creaturePos.y, creaturePos.z);
 		if (creaturePos.x < -10)
 			creaturePos = new Vector3(-10, creaturePos.y, creaturePos.z);
-
+		
 		creature.transform.position = Vector3.Lerp(creature.transform.position, creaturePos, lerpSpeed * Time.deltaTime);
-
+		
 		if (Input.GetKeyUp(creatureKeyCode)) {
 			buttonUpTime = Time.time;
 			barfSoundBool = true;
 		}
 		if (buttonUpTime > buttonDownTime) {
 			if (buttonUpTime - buttonDownTime < munchWaitTime) {
-				mode = Modes.Munch;
+				mode = AnimMode.Munch;
 				animLerpCurrentTime = Time.time + animLerpTime;
 				buttonUpTime = buttonDownTime;
 				mouth.clip = munch;
@@ -194,9 +245,9 @@ public class Animator : MonoBehaviour {
 			if (Input.GetKeyDown(creatureKeyCode)) {
 				buttonDownTime = Time.time;
 			}
-				//If button held down, Barf
+			//If button held down, Barf
 			if (Time.time - buttonDownTime > barfWaitTime) {
-				mode = Modes.Barf;
+				mode = AnimMode.Barf;
 				animLerpCurrentTime = Time.time + animLerpTime;
 				animLerpFirstTime = buttonDownTime + barfWaitTime;
 				if (barfSoundBool) {
@@ -206,7 +257,7 @@ public class Animator : MonoBehaviour {
 				barfSoundBool = false;
 			}
 		}
-
+		
 		if (animLerpCurrentTime > Time.time) {
 			float timeVar = (Time.time - (animLerpCurrentTime - (animLerpTime)));
 			float timeVarFirst = (Time.time - (animLerpFirstTime));
@@ -219,47 +270,60 @@ public class Animator : MonoBehaviour {
 		if (playMode == PlayMode.Play) {
 			currentVal = animLerpVal;
 		}
-
+		
 	}
-
+	
 	public void InputControls(){
 		//Input
-		if(Input.GetAxisRaw("RightTrigger") > triggerDebounce)
-			rightTrigger = Input.GetAxisRaw("RightTrigger");
-		else
-			rightTrigger = 0;
-		
-		if(Input.GetAxisRaw("LeftTrigger") > triggerDebounce)
-			leftTrigger = Input.GetAxisRaw("LeftTrigger");
-		else
-			leftTrigger = 0;
+		rightTrigger = ControllerInput.RightTriggerAxis(id);
+		Debug.Log (id);
+		Debug.Log (rightTrigger);
+		leftTrigger =  ControllerInput.LeftTriggerAxis(id);
+		rightTrigger = ExtensionMethods.Remap(rightTrigger, 0.5f, 0, 0, 1);
+		leftTrigger = ExtensionMethods.Remap(leftTrigger, 0.5f, 0, 1, 1);
 
-		rightAnalogV = ExtensionMethods.Remap(Input.GetAxisRaw("RightAnalog_V"), 0, 1, 0, 1);
-//		rightAnalogH = ExtensionMethods.Remap(Input.GetAxisRaw("RightAnalog_H"), 0, 1, 0, 1);
-//		leftAnalogV = ExtensionMethods.Remap(Input.GetAxisRaw("LefttAnalog_V"), 0, 1, 0, 1);
-//		leftAnalogH =ExtensionMethods.Remap(Input.GetAxisRaw("LeftAnalog_H"), 0, 1, 0, 1);
-//		else
-//			rightAnalogV = 0;
+		rightAnalogY =  ControllerInput.RightAnalog_X_Axis(id, 0.2f);
+		rightAnalogX =  ControllerInput.RightAnalog_Y_Axis(id, 0.2f);
+		leftAnalogX =  ControllerInput.LeftAnalog_X_Axis(id, 0.2f);
+		leftAnalogY =  ControllerInput.LeftAnalog_Y_Axis(id, 0.2f);
+	
+		rightAnalogX = ExtensionMethods.Remap(rightAnalogX, 0, 1, 0, 1);
+		rightAnalogY = ExtensionMethods.Remap(rightAnalogY, 0, 1, 0, 1);
+		leftAnalogX = ExtensionMethods.Remap(leftAnalogX, 0, 1, 0, 1);
+		leftAnalogY = ExtensionMethods.Remap(leftAnalogY, 0, 1, 0, 1);
+
+		rightAnalog = new Vector3(rightAnalogX, rightAnalogY, 0);
+		leftAnalog = new Vector3(leftAnalogX, leftAnalogY, 0);
+
+		//		rightAnalogH = ExtensionMethods.Remap(Input.GetAxisRaw("RightAnalog_H"), 0, 1, 0, 1);
+		//		leftAnalogV = ExtensionMethods.Remap(Input.GetAxisRaw("LefttAnalog_V"), 0, 1, 0, 1);
+		//		leftAnalogH =ExtensionMethods.Remap(Input.GetAxisRaw("LeftAnalog_H"), 0, 1, 0, 1);
+		//		else
+		//			rightAnalogV = 0;
 	}
-
+	
 	public void PlaybackControls() {
 		//Playback Controls
 		InputRouter();
-		if (Input.GetButtonDown("xbox_a"))
+		if (ControllerInput.A_ButtonDown(id))
 			play = !play;
 		if (play) {
 			if (Time.time > currentTime) {
-				if (currentBuffer.Count > index)
-					currentBuffer.Add(0); 
+				if (currentBuffer.Count > index) {
+					//currentBuffer.Add(0); 
+					for (int i=0; i < Enum.GetName(typeof(AnimMode), 0).Length -1; i++) {
+						savedAnimBuffers[i].Add(0);
+					}
+				}
 				index++;
 			}
 		}
 		//Clear
-		if (Input.GetButton("xbox_rightAnalogButton")) {
+		if (ControllerInput.RightAnalog_Click(id)) {
 			currentVal = 0;
 		}
 		//Record
-		if (Input.GetButtonDown("xbox_b"))
+		if (ControllerInput.B_ButtonDown(id))
 			record = !record;
 		if (record) {
 			if (Time.time > currentTime) {
@@ -267,11 +331,11 @@ public class Animator : MonoBehaviour {
 			}
 		}
 		//Reset
-		if (Input.GetButtonDown("xbox_x")) {
+		if (ControllerInput.X_ButtonDown(id)) {
 			index = 0;
 		}
 		//Set Loop
-		if (Input.GetButtonDown("xbox_y")) {
+		if (ControllerInput.Y_ButtonDown(id)) {
 			looping = !looping;
 			loopPos = index;
 			index = 0;
@@ -282,25 +346,40 @@ public class Animator : MonoBehaviour {
 			}
 		}
 		//Switch Animation Mode
-//		Debug.Log(Input.GetAxisRaw("xbox_DPad_H"));
-		if (Input.GetAxisRaw("xbox_DPad_H") == 0)
-			DpadH = true;
-		if (Input.GetAxisRaw("xbox_DPad_H") > 0.5f) {
-//			Debug.Log(mode);
-			if (DpadH) {
-				if ((animIndex + 3) > Enum.GetName(typeof(Modes), 0).Length)
-					animIndex = 0;
-				else
-					animIndex ++;
-				mode = (Modes) animIndex;
-				Debug.Log(mode);
-			}
-			DpadH = false;
-		}
+		//		Debug.Log(Input.GetAxisRaw("xbox_DPad_H"));
+//		if (Input.GetAxisRaw("xbox_DPad_H") == 0)
+//			DpadH = true;
+//		if (Input.GetAxisRaw("xbox_DPad_H") > 0.5f) {
+//			//			Debug.Log(mode);
+//			if (DpadH) {
+		//				if ((animIndex + 3) > Enum.GetName(typeof(AnimMode), 0).Length)
+//					animIndex = 0;
+//				else
+//					animIndex ++;
+		//				mode = (AnimMode) animIndex;
+//				Debug.Log(mode);
+//			}
+//			DpadH = false;
+//		}
+		//Save Animation Buffers
+//		if (Input.GetAxisRaw("xbox_DPad_V") == 0)
+//			DpadV = true;
+//		if (Input.GetAxisRaw("xbox_DPad_V") > 0.5f) {
+//			if (DpadV) {
+//				AnimationContainer animCont = new AnimationContainer(savedAnimBuffers, savePath);
+//				animCont.Save(savePath);
+//				animContainers.Add(animCont);
+//			}
+//			DpadV = false;
+//		}
+
+
+
 		if (Time.time > currentTime) {
 			currentTime += interval;
 		}
 		//Debug.Log(currentVal);
+//		Debug.Log(mode);
 		currentVal = (Mathf.Clamp(currentVal + currentBuffer[index], 0, 1));
 		//rightTriggerBuffer[index] = currentVal;
 		//rightTrigger = Mathf.Clamp(rightTrigger + rightTriggerBuffer[index], 0, 1);
@@ -308,52 +387,108 @@ public class Animator : MonoBehaviour {
 	
 	public void Talk(float inputVal, float existingVal) {
 		inputVal = Mathf.Clamp(inputVal + existingVal, 0, 1);
-		                           
-		//		Debug.Log(inputVal);
-//		rightMouthTopHinge.transform.rotation = Quaternion.AngleAxis(-maxTalkRotateAngle * Mathf.Abs(inputVal) * 0.5f , transform.forward);
-//		rightMouthBottomHinge.transform.rotation = Quaternion.AngleAxis(maxTalkRotateAngle * Mathf.Abs(inputVal) , transform.forward);
-//		rightHeadHinge.transform.rotation = Quaternion.AngleAxis(-maxTalkRotateAngle * Mathf.Abs(inputVal) * 0.2f , transform.forward);
-//		rightNeckHinge.transform.rotation = Quaternion.AngleAxis(-maxTalkRotateAngle * Mathf.Abs(inputVal) * 0.1f, transform.forward);
-
-		Quaternion NeckHingeRot = Quaternion.AngleAxis(-maxTalkRotateAngle * Mathf.Abs(inputVal) * 0.1f * animSign, transform.forward);
-		Quaternion HeadHingeRot = NeckHingeRot * Quaternion.AngleAxis(-maxTalkRotateAngle * Mathf.Abs(inputVal) * 0.2f * animSign, transform.forward);
-		Quaternion MouthBottomHingeRot = HeadHingeRot * Quaternion.AngleAxis(maxTalkRotateAngle * Mathf.Abs(inputVal) * 1f * animSign, transform.forward);
-		Quaternion MouthTopHingeRot = HeadHingeRot * Quaternion.AngleAxis(-maxTalkRotateAngle * Mathf.Abs(inputVal) * 0.5f * animSign, transform.forward);
 		
-		NeckHinge.transform.rotation =  NeckHingeRot;
-		HeadHinge.transform.rotation =  HeadHingeRot;
-		MouthBottomHinge.transform.rotation = MouthBottomHingeRot;
-		MouthTopHinge.transform.rotation = MouthTopHingeRot;
+		//		Debug.Log(inputVal);
+		//		rightmouthTopHinge.transform.rotation = Quaternion.AngleAxis(-maxTalkRotateAngle * Mathf.Abs(inputVal) * 0.5f , transform.forward);
+		//		rightmouthBottomHinge.transform.rotation = Quaternion.AngleAxis(maxTalkRotateAngle * Mathf.Abs(inputVal) , transform.forward);
+		//		rightheadHinge.transform.rotation = Quaternion.AngleAxis(-maxTalkRotateAngle * Mathf.Abs(inputVal) * 0.2f , transform.forward);
+		//		rightneckHinge.transform.rotation = Quaternion.AngleAxis(-maxTalkRotateAngle * Mathf.Abs(inputVal) * 0.1f, transform.forward);
+		
+		Quaternion talkNeckHingeRot = Quaternion.AngleAxis(-maxTalkRotateAngle * Mathf.Abs(inputVal) * 0.1f * animSign, transform.forward);
+		Quaternion talkHeadHingeRot = talkNeckHingeRot * Quaternion.AngleAxis(-maxTalkRotateAngle * Mathf.Abs(inputVal) * 0.2f * animSign, transform.forward);
+		Quaternion talkMouthBottomHingeRot = talkHeadHingeRot * Quaternion.AngleAxis(maxTalkRotateAngle * Mathf.Abs(inputVal) * 1f * animSign, transform.forward);
+		Quaternion talkMouthTopHingeRot = talkHeadHingeRot * Quaternion.AngleAxis(-maxTalkRotateAngle * Mathf.Abs(inputVal) * 0.5f * animSign, transform.forward);
 
+		neckHingeRot *= talkNeckHingeRot;
+		headHingeRot *= talkHeadHingeRot;
+		mouthBottomHingeRot *= talkMouthBottomHingeRot;
+		mouthTopHingeRot *= talkMouthTopHingeRot;
+
+//		neckHinge.transform.rotation =  neckHingeRot;
+//		headHinge.transform.rotation =  headHingeRot;
+//		mouthBottomHinge.transform.rotation = mouthBottomHingeRot;
+//		mouthTopHinge.transform.rotation = mouthTopHingeRot;
 	}
-
+	
 	public void Barf(float inputVal, float existingVal) {
 		inputVal = Mathf.Clamp(inputVal + existingVal, 0, 1);
-
-		Quaternion NeckHingeRot = Quaternion.AngleAxis(maxBarfRotateAngle * Mathf.Abs(inputVal) * 1.3f * animSign, transform.forward);
-		Quaternion HeadHingeRot = NeckHingeRot * Quaternion.AngleAxis(-maxBarfRotateAngle * Mathf.Abs(inputVal) * 1.2f * animSign, transform.forward);
-		Quaternion MouthBottomHingeRot = HeadHingeRot * Quaternion.AngleAxis(maxBarfRotateAngle * Mathf.Abs(inputVal) * 0.7f * animSign, transform.forward);
-		Quaternion MouthTopHingeRot = HeadHingeRot * Quaternion.AngleAxis(-maxBarfRotateAngle * Mathf.Abs(inputVal) * 0.3f * animSign, transform.forward);
-
-		NeckHinge.transform.rotation =  NeckHingeRot;
-		HeadHinge.transform.rotation =  HeadHingeRot;
-		MouthBottomHinge.transform.rotation = MouthBottomHingeRot;
-		MouthTopHinge.transform.rotation = MouthTopHingeRot;
+		
+		Quaternion barfNeckHingeRot = Quaternion.AngleAxis(maxBarfRotateAngle * Mathf.Abs(inputVal) * 1.3f * animSign, transform.forward);
+		Quaternion barfHeadHingeRot = barfNeckHingeRot * Quaternion.AngleAxis(-maxBarfRotateAngle * Mathf.Abs(inputVal) * 1.2f * animSign, transform.forward);
+		Quaternion barfMouthBottomHingeRot = barfHeadHingeRot * Quaternion.AngleAxis(maxBarfRotateAngle * Mathf.Abs(inputVal) * 0.7f * animSign, transform.forward);
+		Quaternion barfMouthTopHingeRot = barfHeadHingeRot * Quaternion.AngleAxis(-maxBarfRotateAngle * Mathf.Abs(inputVal) * 0.3f * animSign, transform.forward);
+	
+		neckHingeRot *= barfNeckHingeRot;
+		headHingeRot *= barfHeadHingeRot;
+		mouthBottomHingeRot *= barfMouthBottomHingeRot;
+		mouthTopHingeRot *= barfMouthTopHingeRot;
 	}
 	public void Munch(float inputVal, float existingVal) {
 		inputVal = Mathf.Clamp(inputVal + existingVal, 0, 1);
 		
-		Quaternion NeckHingeRot = Quaternion.AngleAxis(maxBarfRotateAngle * Mathf.Abs(inputVal) * 0.7f * animSign, transform.forward);
-		Quaternion HeadHingeRot = NeckHingeRot * Quaternion.AngleAxis(-maxBarfRotateAngle * Mathf.Abs(inputVal) * 0.8f * animSign, transform.forward);
-		Quaternion MouthBottomHingeRot = HeadHingeRot * Quaternion.AngleAxis(-maxBarfRotateAngle * Mathf.Abs(inputVal) * 0.55f * animSign, transform.forward);
-		Quaternion MouthTopHingeRot = HeadHingeRot * Quaternion.AngleAxis(maxBarfRotateAngle * Mathf.Abs(inputVal) * 0.2f * animSign, transform.forward);
+		Quaternion munchNeckHingeRot = Quaternion.AngleAxis(maxMunchRotateAngle * Mathf.Abs(inputVal) * 0.7f * animSign, transform.forward);
+		Quaternion munchHeadHingeRot = munchNeckHingeRot * Quaternion.AngleAxis(-maxMunchRotateAngle * Mathf.Abs(inputVal) * 0.8f * animSign, transform.forward);
+		Quaternion munchMouthBottomHingeRot = munchHeadHingeRot * Quaternion.AngleAxis(-maxMunchRotateAngle * Mathf.Abs(inputVal) * 0.55f * animSign, transform.forward);
+		Quaternion munchMouthTopHingeRot = munchHeadHingeRot * Quaternion.AngleAxis(maxMunchRotateAngle * Mathf.Abs(inputVal) * 0.2f * animSign, transform.forward);
 		
-		NeckHinge.transform.rotation =  NeckHingeRot;
-		HeadHinge.transform.rotation =  HeadHingeRot;
-		MouthBottomHinge.transform.rotation = MouthBottomHingeRot;
-		MouthTopHinge.transform.rotation = MouthTopHingeRot;
+		neckHingeRot *= munchNeckHingeRot;
+		headHingeRot *= munchHeadHingeRot;
+		mouthBottomHingeRot *= munchMouthBottomHingeRot;
+		mouthTopHingeRot *= munchMouthTopHingeRot;
+	}
+	public void Up(float inputVal, float existingVal) {
+	}
+	public void Down(float inputVal, float existingVal) {
+	}
+	
+	public void AnimationSumation() {
+
+		if (radialMenu.radialMode == Radial.RadialMode.Blending) {
+			Blending();
+		} else if(radialMenu.radialMode == Radial.RadialMode.RadialMenu) {
+			for (int i=0; i < Enum.GetName(typeof(AnimMode), 0).Length -1; i++) {
+				float val = 0;
+				if (i == (int)mode)
+					val = currentVal;
+				//Debug.Log("index: " + i + " currentVal: " + val);
+				currentAnim[i](val, savedAnimBuffers[i][index]);
+			}
+		}
+
+		//currentAnim[(int) mode](currentVal, 0);
+
+		neckHinge.transform.rotation =  neckHingeRot;
+		headHinge.transform.rotation =  headHingeRot;
+		mouthBottomHinge.transform.rotation = mouthBottomHingeRot;
+		mouthTopHinge.transform.rotation = mouthTopHingeRot;
+		
+		//		neckHingeRot = new Quaternion();
+		//		headHingeRot = new Quaternion();
+		//		mouthBottomHingeRot = new Quaternion();
+		//		mouthTopHingeRot = new Quaternion();
 	}
 
+	public void Blending() {
+		float rightAnalogY =  ControllerInput.RightAnalog_Y_Axis(id, 0.2f);
+		float rightAnalogX =  ControllerInput.RightAnalog_X_Axis(id, 0.2f);
+
+		if (rightAnalogX > 0) {
+			rightAnalogX = ExtensionMethods.Remap(rightAnalogX, 0, 1, 0, 1);
+			currentAnim[(int)AnimMode.Munch](rightAnalogX, savedAnimBuffers[(int)AnimMode.Munch][index]);
+		} else {
+			rightAnalogX = ExtensionMethods.Remap(rightAnalogX, 0, -1, 0, 1);
+			currentAnim[(int)AnimMode.Talk](rightAnalogX, savedAnimBuffers[(int)AnimMode.Talk][index]);
+		}
+		if (rightAnalogY > 0) {
+			rightAnalogY = ExtensionMethods.Remap(rightAnalogY, 0, 1, 0, 1);
+			currentAnim[(int)AnimMode.Up](rightAnalogY, savedAnimBuffers[(int)AnimMode.Up][index]);
+		} else {
+			rightAnalogY = ExtensionMethods.Remap(rightAnalogY, 0, -1, 0, 1);
+			currentAnim[(int)AnimMode.Down](rightAnalogY, savedAnimBuffers[(int)AnimMode.Down][index]);
+		}
+
+	}
+	
 	void PlaySound() {
 		if (mouth.clip != null) //only play if we assigned a sound to the AudioClip slot!
 		{
@@ -366,71 +501,71 @@ public class Animator : MonoBehaviour {
 	}
 	
 	public void InputRouter() {
-//		if (playMode == PlayMode.Play) {
-//				currentVal = animLerpVal;
-//		} else 
+		if (playMode == PlayMode.Play) {
+			currentVal = animLerpVal;
+		} else 
 		if (playMode == PlayMode.Animate) {
 			if (creatureType == CreatureType.Unicorn) {
 				switch (mode) {
-					case Modes.Talk: {
-						currentVal = rightTrigger;
-						currentBuffer = talkBuffer;
-						break;
-					}
-					case Modes.Barf: {
-						currentVal = rightTrigger;
-						currentBuffer = barfBuffer;
-						break;
-					}
-					case Modes.Munch: {
-						currentVal = rightTrigger;
-						currentBuffer = munchBuffer;
-						break;
-					}
+				case AnimMode.Talk: {
+					currentVal = rightTrigger;
+					currentBuffer = talkBuffer;
+					break;
+				}
+				case AnimMode.Barf: {
+					currentVal = rightTrigger;
+					currentBuffer = barfBuffer;
+					break;
+				}
+				case AnimMode.Munch: {
+					currentVal = rightTrigger;
+					currentBuffer = munchBuffer;
+					break;
+				}
 				}
 			} else {
 				switch (mode) {
-					case Modes.Talk: {
-						currentVal = leftTrigger;
-						currentBuffer = talkBuffer;
-						break;
-					}
-					case Modes.Barf: {
-						currentVal = leftTrigger;
-						currentBuffer = barfBuffer;
-						break;
-					}
-					case Modes.Munch: {
-						currentVal = leftTrigger;
-						currentBuffer = munchBuffer;
-						break;
-					}
+				case AnimMode.Talk: {
+					currentVal = rightTrigger;
+					currentBuffer = talkBuffer;
+					break;
+				}
+				case AnimMode.Barf: {
+					currentVal = rightTrigger;
+					currentBuffer = barfBuffer;
+					break;
+				}
+				case AnimMode.Munch: {
+					currentVal = rightTrigger;
+					currentBuffer = munchBuffer;
+					break;
+				}
 				}
 			}
 		}
 	}
-
-//	public void InputRouter(float inputVal) {
-//
-//		switch (mode) {
-//			case Modes.Talk: {
-//				if (talkBuffer.Count < index)
-//					talkBuffer.Add(0);
-//				if (record) {
-//					if (Time.time > currentTime) {
-//						talkBuffer[index] = inputVal;
-//					}
-//				}
-//			}
-//			case Modes.Barf: {
-//				if (barfBuffer.Count < index)
-//					barfBuffer.Add(0);
-//				if (record) {
-//					if (Time.time > currentTime) {
-//						barfBuffer[index] = inputVal;
-//					}
-//				}
-//			}
-//		}
-//	}
+	
+	//	public void InputRouter(float inputVal) {
+	//
+	//		switch (mode) {
+	//			case Modes.Talk: {
+	//				if (talkBuffer.Count < index)
+	//					talkBuffer.Add(0);
+	//				if (record) {
+	//					if (Time.time > currentTime) {
+	//						talkBuffer[index] = inputVal;
+	//					}
+	//				}
+	//			}
+	//			case Modes.Barf: {
+	//				if (barfBuffer.Count < index)
+	//					barfBuffer.Add(0);
+	//				if (record) {
+	//					if (Time.time > currentTime) {
+	//						barfBuffer[index] = inputVal;
+	//					}
+	//				}
+	//			}
+	//		}
+	//	}
 }

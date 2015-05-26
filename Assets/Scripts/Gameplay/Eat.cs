@@ -20,7 +20,7 @@ public class Eat : MonoBehaviour {
 	// Update is called once per frame
 	void Update () {
 		if (Time.time > testTime) {
-			Debug.Log(creature.creatureType + " shrimpCount: " + shrimpCount);
+			//Debug.Log(creature.creatureType + " shrimpCount: " + shrimpCount);
 			testTime += 1;
 		}
 	}
@@ -28,7 +28,7 @@ public class Eat : MonoBehaviour {
 	void OnTriggerStay(Collider obj) {
 		//Debug.Log(obj.name);
 		if (obj.name == "Shrimp") {
-			if (creature.animLerpCurrentTime > Time.time && creature.mode == Modes.Munch) {
+			if (creature.animLerpCurrentTime > Time.time && creature.mode == AnimMode.Munch) {
 				Destroy(obj.gameObject);
 				shrimpCount++;
 			}

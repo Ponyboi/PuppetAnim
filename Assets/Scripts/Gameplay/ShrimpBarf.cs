@@ -62,9 +62,9 @@ public class ShrimpBarf : MonoBehaviour {
 			item.name = "Shrimp";
 			item.gameObject.AddComponent<PukeLifespan>();
 			item.transform.position = new Vector3(xPos, transform.position.y, transform.position.z);
-			item.rigidbody.AddForce(genDir * chunkSpeed);
+			item.GetComponent<Rigidbody>().AddForce(genDir * chunkSpeed);
 			Quaternion deltaRotation = Quaternion.Euler(eulerAngleVelocity * Time.deltaTime);
-			item.rigidbody.MoveRotation(item.rigidbody.rotation * deltaRotation);
+			item.GetComponent<Rigidbody>().MoveRotation(item.GetComponent<Rigidbody>().rotation * deltaRotation);
 	//		speed = 1.04f - (animator.currentVal / (animator.currentVal + 0.001f));
 			timeOut += speed + (speed * Random.Range(0, timeVariation));
 		}

@@ -43,7 +43,7 @@ public class Barf : MonoBehaviour {
 			spawnNow = !spawnNow;
 		}
 		direction = (target.transform.position - transform.position).normalized;
-		if (creature.currentVal > 0.3f && creature.mode == Modes.Barf && eater.shrimpCount > 0)
+		if (creature.currentVal > 0.3f && creature.mode == AnimMode.Barf && eater.shrimpCount > 0)
 			spawnNow = true;
 		else
 			spawnNow = false;
@@ -75,9 +75,9 @@ public class Barf : MonoBehaviour {
 			item.gameObject.AddComponent<BarfHitter>();
 			item.gameObject.AddComponent<PukeLifespan>();
 			item.transform.position = transform.position;
-			item.rigidbody.AddForce(genDir * chunkSpeed);
+			item.GetComponent<Rigidbody>().AddForce(genDir * chunkSpeed);
 			Quaternion deltaRotation = Quaternion.Euler(eulerAngleVelocity * Time.deltaTime);
-			item.rigidbody.MoveRotation(item.rigidbody.rotation * deltaRotation);
+			item.GetComponent<Rigidbody>().MoveRotation(item.GetComponent<Rigidbody>().rotation * deltaRotation);
 			speed = 1.04f - (creature.currentVal / (creature.currentVal + 0.001f));
 			timeOut += speed + (speed * Random.Range(0, timeVariation));
 		}
