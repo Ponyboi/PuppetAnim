@@ -276,8 +276,8 @@ public class Animator : MonoBehaviour {
 	public void InputControls(){
 		//Input
 		rightTrigger = ControllerInput.RightTriggerAxis(id);
-		Debug.Log (id);
-		Debug.Log (rightTrigger);
+//		Debug.Log (id);
+		//Debug.Log (rightTrigger);
 		leftTrigger =  ControllerInput.LeftTriggerAxis(id);
 		rightTrigger = ExtensionMethods.Remap(rightTrigger, 0.5f, 0, 0, 1);
 		leftTrigger = ExtensionMethods.Remap(leftTrigger, 0.5f, 0, 1, 1);
@@ -309,12 +309,17 @@ public class Animator : MonoBehaviour {
 			play = !play;
 		if (play) {
 			if (Time.time > currentTime) {
-				if (currentBuffer.Count > index) {
-					//currentBuffer.Add(0); 
-					for (int i=0; i < Enum.GetName(typeof(AnimMode), 0).Length -1; i++) {
+//				if (currentBuffer.Count <= index+1) {
+//						currentBuffer.Add(0); 
+//				}
+				Debug.Log ("length: "+ Enum.GetName(typeof(AnimMode), 0).Length);
+				for (int i=0; i < Enum.GetName(typeof(AnimMode), 0).Length+1; i++) {
+					Debug.Log ("hello");
+					if (savedAnimBuffers[i].Count <= index+1) {
 						savedAnimBuffers[i].Add(0);
 					}
 				}
+				//}
 				index++;
 			}
 		}
@@ -327,6 +332,7 @@ public class Animator : MonoBehaviour {
 			record = !record;
 		if (record) {
 			if (Time.time > currentTime) {
+				Debug.Log ("current buffer");
 				currentBuffer[index] = currentVal;
 			}
 		}
@@ -380,6 +386,7 @@ public class Animator : MonoBehaviour {
 		}
 		//Debug.Log(currentVal);
 //		Debug.Log(mode);
+		Debug.Log ("currentVal buffer " + index + " " + currentBuffer.Count);
 		currentVal = (Mathf.Clamp(currentVal + currentBuffer[index], 0, 1));
 		//rightTriggerBuffer[index] = currentVal;
 		//rightTrigger = Mathf.Clamp(rightTrigger + rightTriggerBuffer[index], 0, 1);
@@ -450,7 +457,7 @@ public class Animator : MonoBehaviour {
 				float val = 0;
 				if (i == (int)mode)
 					val = currentVal;
-				//Debug.Log("index: " + i + " currentVal: " + val);
+				Debug.Log("index: " + i + " currentVal: " + val);
 				currentAnim[i](val, savedAnimBuffers[i][index]);
 			}
 		}
@@ -473,16 +480,20 @@ public class Animator : MonoBehaviour {
 		float rightAnalogX =  ControllerInput.RightAnalog_X_Axis(id, 0.2f);
 
 		if (rightAnalogX > 0) {
+			Debug.Log ("rightXPos");
 			rightAnalogX = ExtensionMethods.Remap(rightAnalogX, 0, 1, 0, 1);
 			currentAnim[(int)AnimMode.Munch](rightAnalogX, savedAnimBuffers[(int)AnimMode.Munch][index]);
 		} else {
+			Debug.Log ("rightXNeg");
 			rightAnalogX = ExtensionMethods.Remap(rightAnalogX, 0, -1, 0, 1);
 			currentAnim[(int)AnimMode.Talk](rightAnalogX, savedAnimBuffers[(int)AnimMode.Talk][index]);
 		}
 		if (rightAnalogY > 0) {
+			Debug.Log ("rightYPos");
 			rightAnalogY = ExtensionMethods.Remap(rightAnalogY, 0, 1, 0, 1);
 			currentAnim[(int)AnimMode.Up](rightAnalogY, savedAnimBuffers[(int)AnimMode.Up][index]);
 		} else {
+			Debug.Log ("rightYNeg");
 			rightAnalogY = ExtensionMethods.Remap(rightAnalogY, 0, -1, 0, 1);
 			currentAnim[(int)AnimMode.Down](rightAnalogY, savedAnimBuffers[(int)AnimMode.Down][index]);
 		}
