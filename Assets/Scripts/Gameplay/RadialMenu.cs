@@ -3,9 +3,9 @@ using System.Collections;
 using System;
 using System.Collections.Generic;
 
-public class Radial : MonoBehaviour {
+public class RadialMenu : MonoBehaviour {
 	public enum RadialMode{
-		RadialMenu, Blending
+		Menu, Blending
 	}
 
 	public int id;
@@ -37,7 +37,8 @@ public class Radial : MonoBehaviour {
 		radialText.fontSize = 40;
 
 		GameObject textModeObj = new GameObject();
-		textModeObj.transform.position = new Vector3 (0.4f, 1, 0);
+		textModeObj.transform.position = this.transform.position + new Vector3(0, 0.77f, 0);
+		textModeObj.transform.parent = this.transform;
 		raidalModeText = textModeObj.AddComponent<GUIText>();
 		raidalModeText.font = (Font)Resources.Load("Funny2", typeof(Font));
 		raidalModeText.fontSize = 35;
@@ -55,7 +56,7 @@ public class Radial : MonoBehaviour {
 		//Debug.Log(rightAnalog);
 
 		ChangeMenuMode();
-		if (radialMode == RadialMode.RadialMenu) {
+		if (radialMode == RadialMode.Menu) {
 			ChangeAnimMode();
 		} else if(radialMode == RadialMode.Blending) {
 
@@ -91,7 +92,7 @@ public class Radial : MonoBehaviour {
 			
 		}
 		if (rightBumper) {
-			if (modeInt >= radialNames.Count) 
+			if (modeInt >= radialNames.Count-1) 
 				radialMode = (RadialMode)(0);
 			else
 				radialMode++;

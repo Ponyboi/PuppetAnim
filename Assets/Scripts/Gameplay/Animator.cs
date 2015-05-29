@@ -29,7 +29,7 @@ public class Animator : MonoBehaviour {
 	private GameObject mouthBottomHinge;
 
 	//Radial Menu
-	private Radial radialMenu;
+	private RadialMenu radialMenu;
 	
 	//Rotations
 	private Quaternion neckHingeRot;
@@ -87,7 +87,7 @@ public class Animator : MonoBehaviour {
 	public List<float> downBuffer = new List<float>(1000);
 	public int index = 0;
 	public float currentVal = 0;
-	public int loopPos = 999999999;
+	public int loopPos = 10000;
 	public bool play = false;
 	public bool record = false;
 	public bool looping = false;
@@ -114,7 +114,7 @@ public class Animator : MonoBehaviour {
 			animationContainer[((AnimMode)i).ToString("f")].Insert(index, 0);
 		}
 
-		radialMenu = GameObject.Find("Radial" + id).GetComponent<Radial>();
+		radialMenu = GameObject.Find("RadialMenu" + id).GetComponent<RadialMenu>();
 		
 		talkBuffer.Insert(index, 0);
 		barfBuffer.Insert(index, 0);
@@ -167,9 +167,9 @@ public class Animator : MonoBehaviour {
 		mouthBottomHingeRot = Quaternion.AngleAxis(0, transform.forward);
 		mouthTopHingeRot = Quaternion.AngleAxis(0, transform.forward);
 
-		if (radialMenu.radialMode == Radial.RadialMode.RadialMenu) {
+		if (radialMenu.radialMode == RadialMenu.RadialMode.Menu) {
 			mode = radialMenu.animMode;
-		} else if (radialMenu.radialMode == Radial.RadialMode.RadialMenu) {
+		} else if (radialMenu.radialMode == RadialMenu.RadialMode.Menu) {
 
 		}
 
@@ -386,7 +386,7 @@ public class Animator : MonoBehaviour {
 		}
 		//Debug.Log(currentVal);
 //		Debug.Log(mode);
-		Debug.Log ("currentVal buffer " + index + " " + currentBuffer.Count);
+		//Debug.Log ("currentVal buffer " + index + " " + currentBuffer.Count);
 		currentVal = (Mathf.Clamp(currentVal + currentBuffer[index], 0, 1));
 		//rightTriggerBuffer[index] = currentVal;
 		//rightTrigger = Mathf.Clamp(rightTrigger + rightTriggerBuffer[index], 0, 1);
@@ -450,14 +450,14 @@ public class Animator : MonoBehaviour {
 	
 	public void AnimationSumation() {
 
-		if (radialMenu.radialMode == Radial.RadialMode.Blending) {
+		if (radialMenu.radialMode == RadialMenu.RadialMode.Blending) {
 			Blending();
-		} else if(radialMenu.radialMode == Radial.RadialMode.RadialMenu) {
+		} else if(radialMenu.radialMode == RadialMenu.RadialMode.Menu) {
 			for (int i=0; i < Enum.GetName(typeof(AnimMode), 0).Length -1; i++) {
 				float val = 0;
 				if (i == (int)mode)
 					val = currentVal;
-				Debug.Log("index: " + i + " currentVal: " + val);
+				//Debug.Log("index: " + i + " currentVal: " + val);
 				currentAnim[i](val, savedAnimBuffers[i][index]);
 			}
 		}
