@@ -305,24 +305,7 @@ public class Animator : MonoBehaviour {
 	public void PlaybackControls() {
 		//Playback Controls
 		InputRouter();
-		if (ControllerInput.A_ButtonDown(id))
-			play = !play;
-		if (play) {
-			if (Time.time > currentTime) {
-//				if (currentBuffer.Count <= index+1) {
-//						currentBuffer.Add(0); 
-//				}
-				Debug.Log ("length: "+ Enum.GetName(typeof(AnimMode), 0).Length);
-				for (int i=0; i < Enum.GetName(typeof(AnimMode), 0).Length+1; i++) {
-					Debug.Log ("hello");
-					if (savedAnimBuffers[i].Count <= index+1) {
-						savedAnimBuffers[i].Add(0);
-					}
-				}
-				//}
-				index++;
-			}
-		}
+
 		//Clear
 		if (ControllerInput.RightAnalog_Click(id)) {
 			currentVal = 0;
@@ -334,6 +317,24 @@ public class Animator : MonoBehaviour {
 			if (Time.time > currentTime) {
 				Debug.Log ("current buffer");
 				currentBuffer[index] = currentVal;
+			}
+		}
+		if (ControllerInput.A_ButtonDown(id))
+			play = !play;
+		if (play) {
+			if (Time.time > currentTime) {
+				//				if (currentBuffer.Count <= index+1) {
+				//						currentBuffer.Add(0); 
+				//				}
+				Debug.Log ("length: "+ Enum.GetName(typeof(AnimMode), 0).Length);
+				for (int i=0; i < Enum.GetName(typeof(AnimMode), 0).Length+1; i++) {
+					Debug.Log ("hello");
+					if (savedAnimBuffers[i].Count <= index+1) {
+						savedAnimBuffers[i].Add(0);
+					}
+				}
+				//}
+				index++;
 			}
 		}
 		//Reset
