@@ -388,7 +388,7 @@ public class Animator : MonoBehaviour {
 		//Debug.Log(currentVal);
 //		Debug.Log(mode);
 		//Debug.Log ("currentVal buffer " + index + " " + currentBuffer.Count);
-		currentVal = (Mathf.Clamp(currentVal + currentBuffer[index], 0, 1));
+		//currentVal = (Mathf.Clamp(currentVal + currentBuffer[index], 0, 1));
 		//rightTriggerBuffer[index] = currentVal;
 		//rightTrigger = Mathf.Clamp(rightTrigger + rightTriggerBuffer[index], 0, 1);
 	}
